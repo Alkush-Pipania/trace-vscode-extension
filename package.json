@@ -1,0 +1,100 @@
+{
+  "name": "authorship-tracker",
+  "displayName": "Authorship Tracker",
+  "description": "Tracks AI vs human code authorship at the line level",
+  "version": "0.0.1",
+  "publisher": "trace",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "Authorship Tracker",
+      "properties": {
+        "authorshipTracker.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable authorship tracking"
+        },
+        "authorshipTracker.ingestionUrl": {
+          "type": "string",
+          "default": "http://localhost:9090",
+          "description": "URL of the Ingestion Service"
+        },
+        "authorshipTracker.debounceMs": {
+          "type": "number",
+          "default": 300,
+          "description": "Debounce window for grouping rapid keystrokes (ms)"
+        },
+        "authorshipTracker.batchSize": {
+          "type": "number",
+          "default": 50,
+          "description": "Max events per batch before flushing"
+        },
+        "authorshipTracker.batchIntervalMs": {
+          "type": "number",
+          "default": 1000,
+          "description": "Max time before flushing a batch (ms)"
+        },
+        "authorshipTracker.installationId": {
+          "type": "string",
+          "default": "",
+          "description": "Installation Token (tied to org) for the Ingestion Service"
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "authorship-tracker.interceptInlineAccept",
+        "title": "Authorship: Intercept Inline Accept"
+      },
+      {
+        "command": "authorship-tracker.interceptInlineAcceptWord",
+        "title": "Authorship: Intercept Inline Accept Word"
+      },
+      {
+        "command": "authorship-tracker.interceptInlineAcceptLine",
+        "title": "Authorship: Intercept Inline Accept Line"
+      }
+    ],
+    "keybindings": [
+      {
+        "key": "tab",
+        "command": "authorship-tracker.interceptInlineAccept",
+        "when": "inlineSuggestionHasContext && inlineSuggestionVisible && !editorTabMovesFocus"
+      },
+      {
+        "key": "ctrl+right",
+        "command": "authorship-tracker.interceptInlineAcceptWord",
+        "when": "inlineSuggestionHasContext && inlineSuggestionVisible"
+      },
+      {
+        "key": "cmd+right",
+        "command": "authorship-tracker.interceptInlineAcceptLine",
+        "when": "inlineSuggestionHasContext && inlineSuggestionVisible"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap",
+    "watch": "npm run build -- --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src/ --ext .ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.39",
+    "@types/vscode": "^1.85.0",
+    "esbuild": "^0.20.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.2.0"
+  }
+}
