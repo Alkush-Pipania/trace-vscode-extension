@@ -20,8 +20,8 @@ export interface EditEvent {
   event_id: string;
   event_type: "edit";
   file_path: string; // relative to repo root, e.g. "src/auth/handler.ts"
-  file_uri: string; // full file:// URI
-  repo_root: string; // absolute path to git repo root
+  git_remote: string; // normalized remote origin, e.g. "github.com/Alkush-Pipania/sofon"
+  git_user_email: string; // developer identity from git config
   line_start: number; // 1-based
   line_end: number; // 1-based, inclusive
   char_start: number;

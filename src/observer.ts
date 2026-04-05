@@ -12,6 +12,8 @@ import { diffLines } from "./diff";
 // ─── Git repo root cache ────────────────────────────────────────────
 
 const repoRootCache = new Map<string, string | null>();
+const gitRemoteCache = new Map<string, string>();
+const gitUserEmailCache = new Map<string, string>();
 
 function getRepoRoot(filePath: string): string {
   const dir = path.dirname(filePath);
@@ -32,6 +34,67 @@ function getRepoRoot(filePath: string): string {
     repoRootCache.set(dir, dir);
     return dir;
   }
+}
+
+function getGitRemote(repoRoot: string): string {
+  if (gitRemoteCache.has(repoRoot)) return gitRemoteCache.get(repoRoot)!;
+
+  try {
+    const raw = cp
+      .execSync("git remote get-url origin", {
+        cwd: repoRoot,
+        timeout: 2000,
+        stdio: ["pipe", "pipe", "pipe"],
+      })
+      .toString()
+      .trim();
+    const normalized = normalizeGitRemote(raw);
+    gitRemoteCache.set(repoRoot, normalized);
+    return normalized;
+  } catch {
+    gitRemoteCache.set(repoRoot, "");
+    return "";
+  }
+}
+
+function getGitUserEmail(repoRoot: string): string {
+  if (gitUserEmailCache.has(repoRoot)) return gitUserEmailCache.get(repoRoot)!;
+
+  try {
+    const email = cp
+      .execSync("git config user.email", {
+        cwd: repoRoot,
+        timeout: 2000,
+        stdio: ["pipe", "pipe", "pipe"],
+      })
+      .toString()
+      .trim();
+    gitUserEmailCache.set(repoRoot, email);
+    return email;
+  } catch {
+    gitUserEmailCache.set(repoRoot, "");
+    return "";
+  }
+}
+
+/**
+ * Normalize git remote URL to a canonical form:
+ *   git@github.com:Org/repo.git  →  github.com/Org/repo
+ *   https://github.com/Org/repo.git  →  github.com/Org/repo
+ */
+function normalizeGitRemote(raw: string): string {
+  let url = raw.trim();
+  // SSH format: git@github.com:Org/repo.git
+  const sshMatch = url.match(/^[^@]+@([^:]+):(.+)$/);
+  if (sshMatch) {
+    url = sshMatch[1] + "/" + sshMatch[2];
+  } else {
+    // HTTPS format: strip protocol
+    url = url.replace(/^https?:\/\//, "");
+  }
+  // Strip trailing .git
+  url = url.replace(/\.git$/, "");
+  return url;
 }
 
 // ─── Observer ───────────────────────────────────────────────────────
@@ -184,6 +247,8 @@ export class Observer {
     const filePath = e.document.uri.fsPath;
     const repoRoot = getRepoRoot(filePath);
     const relativePath = path.relative(repoRoot, filePath);
+    const gitRemote = getGitRemote(repoRoot);
+    const gitUserEmail = getGitUserEmail(repoRoot);
     const now = Date.now();
     const docUriStr = e.document.uri.toString();
     const cachedDoc = this.documentCache.get(docUriStr);
@@ -375,8 +440,8 @@ export class Observer {
 
         const event = buildEvent({
           filePath: relativePath,
-          fileUri: e.document.uri.toString(),
-          repoRoot,
+          gitRemote,
+          gitUserEmail,
           lineStart: edit.lineStart,
           lineEnd,
           charStart: edit.charStart,
@@ -393,8 +458,8 @@ export class Observer {
       // For human keystrokes, debounce to group rapid typing into one event
       this.debounceHumanEdit(relativePath, {
         filePath: relativePath,
-        fileUri: e.document.uri.toString(),
-        repoRoot,
+        gitRemote,
+        gitUserEmail,
         lineStart: edit.lineStart,
         lineEnd,
         charStart: edit.charStart,
@@ -491,8 +556,8 @@ export class Observer {
 
 interface PendingEdit {
   filePath: string;
-  fileUri: string;
-  repoRoot: string;
+  gitRemote: string;
+  gitUserEmail: string;
   lineStart: number;
   lineEnd: number;
   charStart: number;
@@ -509,8 +574,8 @@ interface PendingEdit {
 function mergeEdits(a: PendingEdit, b: PendingEdit): PendingEdit {
   return {
     filePath: a.filePath,
-    fileUri: a.fileUri,
-    repoRoot: a.repoRoot,
+    gitRemote: a.gitRemote,
+    gitUserEmail: a.gitUserEmail,
     lineStart: Math.min(a.lineStart, b.lineStart),
     lineEnd: Math.max(a.lineEnd, b.lineEnd),
     charStart: a.lineStart <= b.lineStart ? a.charStart : b.charStart,

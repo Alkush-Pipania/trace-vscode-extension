@@ -41,8 +41,8 @@ export function resetSessionId(): void {
 
 export interface BuildEventParams {
   filePath: string;
-  fileUri: string;
-  repoRoot: string;
+  gitRemote: string;
+  gitUserEmail: string;
   lineStart: number; // 1-based
   lineEnd: number; // 1-based, inclusive
   charStart: number;
@@ -58,8 +58,8 @@ export function buildEvent(params: BuildEventParams): EditEvent {
     event_id: generateEventId(),
     event_type: "edit",
     file_path: params.filePath,
-    file_uri: params.fileUri,
-    repo_root: params.repoRoot,
+    git_remote: params.gitRemote,
+    git_user_email: params.gitUserEmail,
     line_start: params.lineStart,
     line_end: params.lineEnd,
     char_start: params.charStart,
